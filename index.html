@@ -226,6 +226,18 @@
                 transform: scale(1);
             }
         }
+
+        #cooldown-timer::before {
+            content: ". . .";
+            display: block;
+            animation: pulse 1.5s infinite;
+            margin-bottom: 2px;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -233,14 +245,10 @@
     
     <div id="input-wrapper" class="centered">
         <div id="input-form">
-            <input 
-                type="text" 
-                id="user-input" 
-                placeholder="ask ai" 
-                autocomplete="off"
-            />
+            <input type="text" id="user-input" placeholder="ask ai" autocomplete="off" />
             <button type="button" id="send-btn">go</button>
         </div>
+        <div id="cooldown-timer" style="display: none; text-align: center; font-size: 12px; font-family: 'Courier New', monospace; margin-top: 8px; color: #666;"></div>
     </div>
 
     <script>
@@ -263,9 +271,12 @@
         let isFirstMessage = true;
         let conversationHistory = [];
 
+        const cooldownDisplay = document.getElementById('cooldown-timer');
+        let cooldownActive = false;
+        
         async function handleSend() {
             const message = userInput.value.trim();
-            if (!message) return;
+            if (!message || cooldownActive) return;
 
             // Check if API key is set
             if (GROQ_API_KEY === 'YOUR_API_KEY_HERE') {
@@ -315,6 +326,30 @@
             
             sendBtn.disabled = false;
             userInput.focus();
+            startCooldown(15);
+        }
+
+        function startCooldown(seconds) {
+            cooldownActive = true;
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            cooldownDisplay.style.display = 'block';
+        
+            let remaining = seconds;
+            
+            const interval = setInterval(() => {
+                remaining -= 0.1;
+                cooldownDisplay.innerText = remaining.toFixed(1) + "s";
+        
+                if (remaining <= 0) {
+                    clearInterval(interval);
+                    cooldownActive = false;
+                    userInput.disabled = false;
+                    sendBtn.disabled = false;
+                    cooldownDisplay.style.display = 'none';
+                    userInput.focus();
+                }
+            }, 100); // Updates every 100ms for a smooth decimal countdown
         }
 
         // Handle button click
