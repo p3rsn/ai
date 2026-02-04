@@ -1,7 +1,7 @@
 # this is ai
 
 a lightweight little thing i made and its only one index.html file.
-it uses groq and uses llama-3.3-70b-versatile
+it uses groq and uses llama-3.1-8b-instant
 
 ## usage
 
