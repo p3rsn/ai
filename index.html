@@ -64,6 +64,56 @@
             margin-right: auto;
             border: 1px solid #e0e0e0;
             color: #333;
+            white-space: pre-wrap;
+        }
+
+        .message code {
+            background: #e8e8e8;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+        }
+
+        .message pre {
+            background: #2d2d2d;
+            color: #f8f8f8;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .message pre code {
+            background: transparent;
+            padding: 0;
+            color: #f8f8f8;
+        }
+
+        .message strong {
+            font-weight: 600;
+        }
+
+        .message em {
+            font-style: italic;
+        }
+
+        .message a {
+            color: #4a90e2;
+            text-decoration: none;
+        }
+
+        .message a:hover {
+            text-decoration: underline;
+        }
+
+        .message ul, .message ol {
+            margin: 8px 0;
+            padding-left: 24px;
+        }
+
+        .message li {
+            margin: 4px 0;
         }
 
         #input-wrapper {
@@ -190,7 +240,7 @@
 
     <script>
         // ============================================
-        // STEP 1: PUT YOUR GROQ API KEY HERE
+        // PUT YOUR GROQ API KEY HERE
         // ============================================
         // Go to https://console.groq.com/keys
         // Click "Create API Key"
@@ -254,8 +304,8 @@
                 });
             } catch (error) {
                 typingIndicator.remove();
-                addMessage('Sorry, I encountered an error: ' + error.message, 'ai');
-                console.error('Error details:', error);
+                addMessage('error: ' + error.message, 'ai');
+                addMessage('further error details: ' + error, 'ai');
             }
             
             sendBtn.disabled = false;
@@ -316,9 +366,53 @@
         function addMessage(text, sender) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${sender}`;
-            messageDiv.textContent = text;
+            
+            if (sender === 'ai') {
+                // Parse markdown for AI messages
+                messageDiv.innerHTML = parseMarkdown(text);
+            } else {
+                // Plain text for user messages
+                messageDiv.textContent = text;
+            }
+            
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function parseMarkdown(text) {
+            // Escape HTML first
+            text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            
+            // Code blocks (```)
+            text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+                return `<pre><code>${code.trim()}</code></pre>`;
+            });
+            
+            // Inline code (`)
+            text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // Bold (**text** or __text__)
+            text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
+            
+            // Italic (*text* or _text_)
+            text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            text = text.replace(/_(.+?)_/g, '<em>$1</em>');
+            
+            // Links [text](url)
+            text = text.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+            
+            // Line breaks
+            text = text.replace(/\n/g, '<br>');
+            
+            // Unordered lists
+            text = text.replace(/^[\*\-]\s+(.+)$/gm, '<li>$1</li>');
+            text = text.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+            
+            // Ordered lists
+            text = text.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+            
+            return text;
         }
 
         function showTypingIndicator() {
