@@ -281,7 +281,7 @@
         const KK = atob(atob("WjNOclgwSkNhWGw2WlZSdVdYQktUMWM1V0ZGTFZETkhWMGRrZVdJelJsazFVVEZGU2pOcFVsWnVWV1JKT1hGaGExWktSemwxWlhZPQ=="));
         
         // Add your Hugging Face access token here
-        const HF_KEY = atob(atob("YUdaZlIyRkNZblZoZDI5WWNGWjBTMk4xV2xCQ1IzRmFZWGQ0Um1sNVExVjBaV3RVUkE9PQ=="));
+        const HF_KEY = atob(atob("YUdaZlRuQm1lWEIzYUVKVmNYbHJXVXBLV0cxSlRWUnhVRk5SUkZaNlJrcFhWbnBxZVE9PQ=="));
 
         const chatContainer = document.getElementById('chat-container');
         const inputWrapper = document.getElementById('input-wrapper');
@@ -303,11 +303,11 @@
             if (isImageMode) {
                 modeBtn.classList.add('active');
                 modeBtn.innerHTML = '<i class="fa-solid fa-image"></i> img';
-                userInput.placeholder = 'describe an image..';
+                userInput.placeholder = 'describe a picture';
             } else {
                 modeBtn.classList.remove('active');
                 modeBtn.innerHTML = '<i class="fa-solid fa-comment"></i> text';
-                userInput.placeholder = 'ask ai..';
+                userInput.placeholder = 'ask ai';
             }
         });
         
@@ -315,7 +315,6 @@
             const message = userInput.value.trim();
             if (!message || cooldownActive) return;
 
-            // Move input to bottom on first message
             if (isFirstMessage) {
                 inputWrapper.classList.remove('centered');
                 inputWrapper.classList.add('bottom');
@@ -323,7 +322,6 @@
                 isFirstMessage = false;
             }
 
-            // Add user message
             addMessage(message, 'user');
             
             userInput.value = '';
@@ -372,7 +370,8 @@
                 throw new Error("Hugging Face API key is missing. Set HF_KEY in script.");
             }
 
-            const modelUrl = 'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell';
+            // Updated router endpoint for Hugging Face Inference API
+            const modelUrl = 'https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell';
 
             const response = await fetch(modelUrl, {
                 method: 'POST',
