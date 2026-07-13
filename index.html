@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <title>ai</title>
     <style>
         * {
@@ -66,6 +67,13 @@
             border: 1px solid #e0e0e0;
             color: #333;
             white-space: pre-wrap;
+        }
+
+        .message img.generated-image {
+            max-width: 100%;
+            border-radius: 6px;
+            margin-top: 8px;
+            display: block;
         }
 
         .message code {
@@ -187,20 +195,45 @@
             cursor: not-allowed;
         }
 
+        #mode-btn {
+            padding: 10px 14px;
+            background: #e0e0e0;
+            color: #333;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        #mode-btn:hover {
+            background: #d0d0d0;
+        }
+
+        #mode-btn.active {
+            background: #8e44ad;
+            color: white;
+            border-color: #732d91;
+        }
+
         .typing-indicator {
             display: flex;
             align-items: center;
             justify-content: center;
             width: 40px;
             height: 40px;
-            background: transparent; /* Removed background for a cleaner look */
+            background: transparent;
             margin-bottom: 12px;
         }
 
         .typing-indicator .spinner-square {
             width: 16px;
             height: 16px;
-            border: 2px solid #333; /* Black outline */
+            border: 2px solid #333;
             background: transparent;
             animation: spin-square 1.2s infinite ease-in-out;
         }
@@ -211,19 +244,10 @@
             }
             50% { 
                 transform: rotate(180deg); 
-                border-radius: 2px; /* Slight softening during turn */
+                border-radius: 2px;
             }
             100% { 
                 transform: rotate(360deg); 
-            }
-        }
-
-        @keyframes bounce {
-            0%, 80%, 100% {
-                transform: scale(0);
-            }
-            40% {
-                transform: scale(1);
             }
         }
 
@@ -247,31 +271,49 @@
         <div id="input-form">
             <input type="text" id="user-input" placeholder="ask ai" autocomplete="off" />
             <button type="button" id="send-btn">go</button>
+            <button type="button" id="mode-btn" title="Toggle Image Mode"><i class="fa-solid fa-comment"></i> text</button>
         </div>
         <div id="cooldown-timer" style="display: none; text-align: center; font-size: 12px; font-family: 'Courier New', monospace; margin-top: 8px; color: #666;"></div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/base128-encoding@2.0.2/dist/index.min.js"></script>
     <script>
-        
         const KK = atob(atob("WjNOclgwSkNhWGw2WlZSdVdYQktUMWM1V0ZGTFZETkhWMGRrZVdJelJsazFVVEZGU2pOcFVsWnVWV1JKT1hGaGExWktSemwxWlhZPQ=="));
         
-        // ============================================
-        
+        // Add your Hugging Face access token here
+        const HF_KEY = atob(atob("YUdaZlIyRkNZblZoZDI5WWNGWjBTMk4xV2xCQ1IzRmFZWGQ0Um1sNVExVjBaV3RVUkE9PQ=="));
+
         const chatContainer = document.getElementById('chat-container');
         const inputWrapper = document.getElementById('input-wrapper');
         const inputForm = document.getElementById('input-form');
         const userInput = document.getElementById('user-input');
         const sendBtn = document.getElementById('send-btn');
+        const modeBtn = document.getElementById('mode-btn');
+
         let isFirstMessage = true;
         let conversationHistory = [];
+        let isImageMode = false;
 
         const cooldownDisplay = document.getElementById('cooldown-timer');
         let cooldownActive = false;
+
+        // Mode toggle behavior
+        modeBtn.addEventListener('click', () => {
+            isImageMode = !isImageMode;
+            if (isImageMode) {
+                modeBtn.classList.add('active');
+                modeBtn.innerHTML = '<i class="fa-solid fa-image"></i> img';
+                userInput.placeholder = 'describe an image..';
+            } else {
+                modeBtn.classList.remove('active');
+                modeBtn.innerHTML = '<i class="fa-solid fa-comment"></i> text';
+                userInput.placeholder = 'ask ai..';
+            }
+        });
         
         async function handleSend() {
             const message = userInput.value.trim();
             if (!message || cooldownActive) return;
-
 
             // Move input to bottom on first message
             if (isFirstMessage) {
@@ -283,39 +325,79 @@
 
             // Add user message
             addMessage(message, 'user');
-            conversationHistory.push({
-                role: 'user',
-                content: message
-            });
             
             userInput.value = '';
             sendBtn.disabled = true;
 
-            // Show typing indicator
             const typingIndicator = showTypingIndicator();
 
             try {
-                // Call Groq API
-                const aiResponse = await getGroqResponse(conversationHistory);
-                
-                // Remove typing indicator
-                typingIndicator.remove();
+                if (isImageMode) {
+                    const imageUrl = await generateHuggingFaceImage(message);
+                    typingIndicator.remove();
 
-                // Add AI response
-                addMessage(aiResponse, 'ai');
-                conversationHistory.push({
-                    role: 'assistant',
-                    content: aiResponse
-                });
+                    addImageMessage(imageUrl, message);
+                    conversationHistory.push({
+                        role: 'assistant',
+                        content: `[Generated Image for prompt: "${message}"]`
+                    });
+                } else {
+                    conversationHistory.push({
+                        role: 'user',
+                        content: message
+                    });
+
+                    const aiResponse = await getGroqResponse(conversationHistory);
+                    
+                    typingIndicator.remove();
+
+                    addMessage(aiResponse, 'ai');
+                    conversationHistory.push({
+                        role: 'assistant',
+                        content: aiResponse
+                    });
+                }
             } catch (error) {
                 typingIndicator.remove();
                 addMessage('error: ' + error.message, 'ai');
-                addMessage('further error details: ' + error, 'ai');
             }
             
             sendBtn.disabled = false;
             userInput.focus();
             startCooldown(12.5);
+        }
+
+        async function generateHuggingFaceImage(prompt) {
+            if (!HF_KEY || HF_KEY === "") {
+                throw new Error("Hugging Face API key is missing. Set HF_KEY in script.");
+            }
+
+            const modelUrl = 'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell';
+
+            const response = await fetch(modelUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${HF_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ inputs: prompt })
+            });
+
+            if (!response.ok) {
+                const errJson = await response.json().catch(() => ({}));
+                throw new Error(errJson.error || `Hugging Face API Error (${response.status})`);
+            }
+
+            const blob = await response.blob();
+            return URL.createObjectURL(blob);
+        }
+
+        function addImageMessage(imageUrl, prompt) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ai';
+            messageDiv.innerHTML = `<div><strong>Generated Image:</strong> <em>${prompt}</em></div><img src="${imageUrl}" class="generated-image" alt="${prompt}" />`;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
         function startCooldown(seconds) {
@@ -338,13 +420,11 @@
                     cooldownDisplay.style.display = 'none';
                     userInput.focus();
                 }
-            }, 100); // Updates every 100ms for a smooth decimal countdown
+            }, 100);
         }
 
-        // Handle button click
         sendBtn.addEventListener('click', handleSend);
 
-        // Handle Enter key
         userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -397,10 +477,8 @@
             messageDiv.className = `message ${sender}`;
             
             if (sender === 'ai') {
-                // Parse markdown for AI messages
                 messageDiv.innerHTML = parseMarkdown(text);
             } else {
-                // Plain text for user messages
                 messageDiv.textContent = text;
             }
             
@@ -409,52 +487,32 @@
         }
 
         function parseMarkdown(text) {
-            // Escape HTML first
             text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            
-            // Code blocks (```)
             text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
                 return `<pre><code>${code.trim()}</code></pre>`;
             });
-            
-            // Inline code (`)
             text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
-            
-            // Bold (**text** or __text__)
             text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
             text = text.replace(/__(.+?)__/g, '<strong>$1</strong>');
-            
-            // Italic (*text* or _text_)
             text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
             text = text.replace(/_(.+?)_/g, '<em>$1</em>');
-            
-            // Links [text](url)
             text = text.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-            
-            // Line breaks
             text = text.replace(/\n/g, '<br>');
-            
-            // Unordered lists
             text = text.replace(/^[\*\-]\s+(.+)$/gm, '<li>$1</li>');
             text = text.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-            
-            // Ordered lists
             text = text.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
-            
             return text;
         }
 
         function showTypingIndicator() {
             const indicator = document.createElement('div');
             indicator.className = 'typing-indicator';
-            // Changed from three spans to one div for the square
             indicator.innerHTML = '<div class="spinner-square"></div>';
             chatContainer.appendChild(indicator);
             chatContainer.scrollTop = chatContainer.scrollHeight;
             return indicator;
         }
 
-        // Focus input on load
         userInput.focus();
     </script>
 </body>
